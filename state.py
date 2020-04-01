@@ -3,8 +3,6 @@
 class State:
 
     edges = []
-     
-    #none means epsilon
     label = None
 
     def __init__(self, label=None, edges=[]):
@@ -20,9 +18,70 @@ class Frag:
         self.start = start
         self.accept = accept
 
-myinstance = State(label='a', edges=[])
-myotherinstance = State(edges=[myinstance])
-myfrag = Frag(myinstance, myotherinstance)
-print(myinstance.label)
-print(myotherinstance.edges[0])
-print(myfrag)
+def shunt(infix):
+    infix = list(infix)[::-1]
+    opers=[]
+    postfix=[]
+    prec={'*':100,'.':80,'|':60,')':40,'(':20}
+    while infix:
+        c=infix.pop()
+        if c=='(':
+            opers.append(c)
+        elif c==')':
+            while opers[-1] != '(':
+                postfix.append(opers.pop())
+            opers.pop()
+        elif c in prec:
+            while opers and prec[c] < prec[opers[-1]]:
+                 postfix.append(opers.pop())
+            opers.append(c)
+        else:
+            postfix.append(c)
+    while opers:
+        postfix.append(opers.pop())
+    postfix=''.join(postfix)
+    return postfix
+
+def regex_compile(infix):
+    postfix = shunt(infix)
+    postfix = list(postfix)[::-1]
+
+    nfa_stack = []
+
+    while postfix:
+        c = postfix.pop()
+        if c == '.':
+            frag1 = nfa_stack.pop()
+            frag2 = nfa_stack.pop()
+            frag2.accept.edges.append(frag1.start)
+            newfrag = Frag(frag2.start, frag1.accept)
+            nfa_stack.append(newfrag)
+        elif c == '|':
+            frag1 = nfa_stack.pop()
+            frag2 = nfa_stack.pop()
+            accept = State()
+            start = State(edges=[frag2.start, frag1.start])
+            frag2.accept.edges.append(accept)
+            frag1.accept.edges.append(accept)
+            newfrag = Frag(start, accept)
+            nfa_stack.append(newfrag)
+        elif c == '*':
+            frag = nfa_stack.pop()
+            accept = State()
+            start = State(edges=[frag.start, accept])
+            frag.accept.edges.append(frag.start)
+            frag.accept.edges.append(accept)
+            newfrag = Frag(start, accept)
+            nfa_stack.append(newfrag)
+        else:
+            accept = State()
+            initial = State(label=c,edges=[accept])
+            newfrag = Frag(initial, accept)
+            nfa_stack.append(newfrag)
+    return nfa_stack.pop()
+
+def match(regex,s):
+    nfa = regex_compile(regex)
+    return nfa
+
+print(match("a.b|b*", "bbbbbbbbbbb"))
