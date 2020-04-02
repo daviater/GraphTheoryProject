@@ -80,8 +80,30 @@ def regex_compile(infix):
             nfa_stack.append(newfrag)
     return nfa_stack.pop()
 
+def followes(state, current):
+    if state not in current:
+        current.add(state)
+        if state.label is None:
+            for x in state.edges:
+                followes(x,current)
+
 def match(regex,s):
     nfa = regex_compile(regex)
-    return nfa
+
+    current = set()
+
+    followes(nfa.start, current)
+    
+    previous = set()
+
+    for c in s:
+        previous = current
+        current = set()
+        for st in previous:
+            if st.label is not None:
+                if st.label == c:
+                    followes(st.edges[0], current)
+
+    return nfa.accept in current
 
 print(match("a.b|b*", "bbbbbbbbbbb"))
